@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RE:FORM — A Basketball That Evolves</title>
+  <meta name="description" content="A modular basketball designed to evolve. Built around an interchangeable 8-panel leather architecture engineered for play.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%23C35824'/><path d='M50 2 A48 48 0 0 1 50 98 M2 50 A48 48 0 0 1 98 50' stroke='%23111' stroke-width='4' fill='none'/></svg>">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+
+  <!-- FIXED THREE.JS 3D CANVAS LAYER (Behind all content, non-blocking native scroll) -->
+  <div id="webgl-canvas" aria-hidden="true"></div>
+
+  <!-- CINEMATIC INITIAL LOADING OVERLAY (Minimal subtle text, fades cleanly as ball expands) -->
+  <div id="loading-overlay" class="loading-overlay" aria-live="polite">
+    <div class="loading-subtext">INITIALIZING // RE:FORM</div>
+  </div>
+
+  <!-- FIXED TOP PILL NAVIGATION (Floats near top with generous margins) -->
+  <header id="site-nav" class="pill-nav-container">
+    <a href="#hero" class="brand-mark" aria-label="RE:FORM Home">
+      <span class="brand-text">RE:FORM</span>
+      <span class="brand-dot"></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#concept" class="nav-link" data-nav="concept">CONCEPT</a>
+      <a href="#modular-system" class="nav-link" data-nav="modular-system">MODULAR SYSTEM</a>
+      <a href="#materials" class="nav-link" data-nav="materials">MATERIALITY</a>
+      <a href="#allocation" class="nav-link" data-nav="allocation">ALLOCATION</a>
+    </nav>
+    <div class="nav-status">
+      <span class="status-dot"></span>
+      <span class="status-text">SPECIMEN // 001</span>
+    </div>
+  </header>
+
+  <!-- LEFT VERTICAL NAVIGATION RAIL (Iconic states with miniature basketball thumbnail) -->
+  <aside id="nav-rail" class="vertical-rail" aria-label="Product Story Navigation">
+    <button class="rail-item rail-overview" aria-label="System Overview" title="Overview">
+      <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="4" y1="7" x2="20" y2="7"></line>
+        <line x1="4" y1="12" x2="20" y2="12"></line>
+        <line x1="4" y1="17" x2="20" y2="17"></line>
+      </svg>
+    </button>
+    <div class="rail-divider"></div>
+    <a href="#hero" class="rail-item active" data-rail="hero" aria-label="01 // Product" title="01 — Product">
+      <div class="rail-thumb-wrapper">
+        <svg class="rail-ball-thumb" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <radialGradient id="thumbShine" cx="35%" cy="30%" r="65%">
+              <stop offset="0%" stop-color="#FF7A38"/>
+              <stop offset="40%" stop-color="#D6521A"/>
+              <stop offset="78%" stop-color="#802808"/>
+              <stop offset="100%" stop-color="#300E03"/>
+            </radialGradient>
+            <radialGradient id="thumbSpec" cx="30%" cy="26%" r="32%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.85)"/>
+              <stop offset="45%" stop-color="rgba(255,255,255,0.2)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+            </radialGradient>
+          </defs>
+          <circle cx="50" cy="50" r="46" fill="url(#thumbShine)"/>
+          <path d="M50 4 A46 46 0 0 1 50 96" stroke="#101114" stroke-width="4.8" fill="none"/>
+          <path d="M4 50 A46 46 0 0 1 96 50" stroke="#101114" stroke-width="4.8" fill="none"/>
+          <path d="M18 18 Q 50 40 82 18" stroke="#101114" stroke-width="4" fill="none"/>
+          <path d="M18 82 Q 50 60 82 82" stroke="#101114" stroke-width="4" fill="none"/>
+          <circle cx="50" cy="50" r="46" fill="url(#thumbSpec)"/>
+        </svg>
+      </div>
+      <span class="rail-tooltip">01 // PRODUCT</span>
+    </a>
+    <a href="#concept" class="rail-item" data-rail="concept" aria-label="02 // Concept" title="02 — Concept">
+      <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+      <span class="rail-tooltip">02 // CONCEPT</span>
+    </a>
+    <a href="#modular-system" class="rail-item" data-rail="modular-system" aria-label="03 // Modular" title="03 — Modular">
+      <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+      </svg>
+      <span class="rail-tooltip">03 // MODULAR</span>
+    </a>
+    <a href="#materials" class="rail-item" data-rail="materials" aria-label="04 // Materiality" title="04 — Materiality">
+      <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3.5"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+      </svg>
+      <span class="rail-tooltip">04 // MATERIAL</span>
+    </a>
+    <a href="#allocation" class="rail-item" data-rail="allocation" aria-label="05 // Allocation" title="05 — Allocation">
+      <svg class="rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="12" x2="15" y2="15"></line>
+      </svg>
+      <span class="rail-tooltip">05 // ALLOCATION</span>
+    </a>
+  </aside>
+
+  <!-- RIGHT-SIDE PROGRESS INDICATOR (Editorial vertical section indicator) -->
+  <aside id="story-progress" class="vertical-progress" aria-label="Story Progress">
+    <button id="progress-prev" class="progress-step-btn" aria-label="Previous Section" title="Previous Section">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 10 8 6 12 10"></polyline>
+      </svg>
+    </button>
+    <div class="progress-track-wrapper">
+      <div class="progress-dots">
+        <span class="p-dot active" data-step="0" title="Product"></span>
+        <span class="p-dot" data-step="1" title="Concept"></span>
+        <span class="p-dot" data-step="2" title="Modular"></span>
+        <span class="p-dot" data-step="3" title="Material"></span>
+        <span class="p-dot" data-step="4" title="Allocation"></span>
+      </div>
+      <div class="progress-label-vertical">
+        <span id="progress-current-label">01 // PRODUCT</span>
+      </div>
+    </div>
+    <button id="progress-next" class="progress-step-btn" aria-label="Next Section" title="Next Section">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 6 8 10 12 6"></polyline>
+      </svg>
+    </button>
+  </aside>
+
+  <!-- MAIN SCROLLABLE EDITORIAL CONTENT -->
+  <main id="page-content">
+
+    <!-- ==========================================
+         SECTION 1: HERO (0vh - 100vh)
+         Typography reveals strictly after ball settles
+         ========================================== -->
+    <section id="hero" class="site-section hero-section">
+      <div class="hero-top-meta hero-reveal">
+        <span class="meta-tag">RECONFIGURABLE LEATHER CARCASS</span>
+        <span class="meta-edition">EDITION // 2026</span>
+      </div>
+
+      <div class="hero-bottom-grid">
+        <div class="hero-copy">
+          <h1 class="hero-headline">A BASKETBALL<br>THAT EVOLVES.</h1>
+          <p class="hero-subtext">
+            A modular basketball built around a replaceable exterior shell. Engineered for play across hardwood, composite, and outdoor asphalt without discarding the core.
+          </p>
+          <div class="hero-actions">
+            <a href="#modular-system" class="cta-primary">
+              <span>EXPLORE THE SYSTEM</span>
+              <span class="cta-arrow">↓</span>
+            </a>
+            <button id="replay-btn" class="cta-replay" aria-label="Replay Product Reveal">
+              <span class="replay-icon">↺</span>
+              <span>REPLAY REVEAL</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-scroll-indicator hero-reveal">
+        <span class="scroll-line"></span>
+        <span>SCROLL TO EXPLORE</span>
+      </div>
+    </section>
+
+
+    <!-- ==========================================
+         SECTION 2: INDUSTRIAL DESIGN CONCEPT (100vh - 220vh)
+         Ball translates smoothly to the right flank
+         ========================================== -->
+    <section id="concept" class="site-section concept-section">
+      <div class="section-container">
+        <div class="editorial-column-left">
+          <span class="section-label">01 // INDUSTRIAL DESIGN</span>
+          <h2 class="editorial-heading">RE-ENGINEERED<br>FROM THE CARCASS OUT.</h2>
+          <p class="editorial-body">
+            Traditional basketballs are disposable by design. When exterior leather panels wear smooth or lose tactility, the entire carcass is discarded.
+          </p>
+          <p class="editorial-body">
+            RE:FORM decouples the pneumatic pressure vessel from the tactile exterior. An autonomous high-rebound core receives replaceable leather shells through precision magnetic channel retention.
+          </p>
+
+          <div class="spec-list">
+            <div class="spec-row">
+              <span class="spec-name">CORE VESSEL</span>
+              <span class="spec-val">Reinforced Butyl Pneumatic Bladder</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-name">PANEL RETENTION</span>
+              <span class="spec-val">Self-Aligning Magnetic Channels</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-name">REGULATION MASS</span>
+              <span class="spec-val">620g ± 10g (FIBA Spec)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ==========================================
+         SECTION 3: MODULAR PANEL SYSTEM (EXPLODED VIEW)
+         Pinned ScrollTrigger section: 8 panels separate outward in 3D
+         ========================================== -->
+    <section id="modular-system" class="site-section modular-section">
+      <div class="sticky-panel-container">
+        <div class="modular-header">
+          <span class="section-label">02 // MODULAR ARCHITECTURE</span>
+          <h2 class="editorial-heading-center">THE 8-PANEL MODULAR SYSTEM</h2>
+          <p class="modular-caption">Scroll to inspect the separated exterior shell & pneumatic core.</p>
+        </div>
+
+        <!-- Dynamic callout milestones positioned around the 3D exploded panels -->
+        <div class="callout-grid">
+          <div class="callout-card callout-left" id="callout-1">
+            <span class="callout-num">[01]</span>
+            <h3 class="callout-title">HORWEEN LEATHER SHELLS</h3>
+            <p class="callout-desc">Full-grain vegetable-tanned panels calibrated for authentic friction and tactile grip response.</p>
+          </div>
+
+          <div class="callout-card callout-right" id="callout-2">
+            <span class="callout-num">[02]</span>
+            <h3 class="callout-title">PNEUMATIC CORE BLADDER</h3>
+            <p class="callout-desc">Dark vulcanized graphite carcass retaining internal pressure balance at 8.5 PSI.</p>
+          </div>
+
+          <div class="callout-card callout-bottom" id="callout-3">
+            <span class="callout-num">[03]</span>
+            <h3 class="callout-title">RAPID PANEL EXCHANGE</h3>
+            <p class="callout-desc">Swap between soft indoor court leather and durable outdoor composite in under 60 seconds.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ==========================================
+         SECTION 4: TACTILITY & MATERIALITY (420vh - 540vh)
+         Ball translates to left flank, macro camera view of pebble grain
+         ========================================== -->
+    <section id="materials" class="site-section materials-section">
+      <div class="section-container">
+        <div class="editorial-column-right">
+          <span class="section-label">03 // TACTILE CRAFT</span>
+          <h2 class="editorial-heading">ORGANIC GRAIN.<br>RECESSED SEAMS.</h2>
+          <p class="editorial-body">
+            Every modular panel is molded with high-density domed micro-pebbles that channel perspiration away from contact points, preserving fingertip traction through high-velocity passes and rotation.
+          </p>
+          <p class="editorial-body">
+            Deeply recessed 8mm black rubber seam grooves guide shooting hand alignment without artificial raised ridges.
+          </p>
+
+          <div class="metric-grid">
+            <div class="metric-block">
+              <span class="metric-number">120</span>
+              <span class="metric-label">Pebbles per cm²</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-number">8mm</span>
+              <span class="metric-label">Seam Channel Depth</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-number">100%</span>
+              <span class="metric-label">True Rebound Response</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ==========================================
+         SECTION 5: FINAL CTA & ALLOCATION (540vh - 640vh)
+         Ball returns center stage under dramatic spotlight
+         ========================================== -->
+    <section id="allocation" class="site-section cta-section">
+      <div class="cta-inner">
+        <span class="section-label">FINAL ALLOCATION // SPECIMEN 01</span>
+        <h2 class="cta-heading">THE FUTURE OF PLAY<br>IS MODULAR.</h2>
+        <p class="cta-subtext">
+          Hand-assembled in limited production runs. Includes one pneumatic core bladder, eight primary Horween court panels, and an authentic magnetic calibration tool.
+        </p>
+
+        <div class="cta-btn-group">
+          <a href="#inquire" class="cta-primary cta-large">
+            <span>REQUEST ALLOCATION</span>
+            <span class="cta-arrow">→</span>
+          </a>
+          <button id="replay-film-btn" class="cta-replay cta-replay-large">
+            <span class="replay-icon">↺</span>
+            <span>REPLAY FILM</span>
+          </button>
+        </div>
+
+        <footer id="site-footer">
+          <div class="footer-left">
+            <span>© 2026 RE:FORM INDUSTRIAL SPECIMENS</span>
+            <span>ALL RIGHTS RESERVED</span>
+          </div>
+          <div class="footer-right">
+            <span>ENGINEERED FOR PLAY</span>
+            <span>PATENT PENDING</span>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

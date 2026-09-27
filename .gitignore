@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.playwright-mcp/
+.impeccable/
+.env
+.env.*
+*.log
+.DS_Store
