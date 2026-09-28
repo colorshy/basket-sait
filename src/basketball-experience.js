@@ -37,7 +37,7 @@ export class StandaloneBasketballMotion {
     this.heroLookY = isDesktop ? -0.15 : -0.10;
 
     // Cinematic reveal tracking
-    this.targetShadowOpacity = 0.0;
+    this.targetShadowOpacity = 0.96;
     this.revealRotY = 0.0;
     this.revealTimeline = null;
 
@@ -53,7 +53,8 @@ export class StandaloneBasketballMotion {
 
     // Scene & Camera
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x08080a);
+    this.scene.background = this.createArenaBackgroundTexture();
+    this.scene.fog = new THREE.Fog(0x10141e, 10, 36);
 
     this.camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 100);
     this.camera.position.set(0, this.heroCamY, this.heroCamZ);
@@ -137,43 +138,50 @@ export class StandaloneBasketballMotion {
     this.lights = new THREE.Group();
     this.scene.add(this.lights);
 
-    // 1. Soft Ambient Fill
-    this.ambientLight = new THREE.AmbientLight(0x20242e, 0.40);
+    // 1. Soft Ambient Fill (balanced court illumination)
+    this.ambientLight = new THREE.AmbientLight(0x282e3c, 0.65);
     this.lights.add(this.ambientLight);
 
-    // 2. Key Light: 45-degree angled warm key
-    this.keyLight = new THREE.SpotLight(0xfff0e4, 4.2, 30, 0.80, 0.5, 1.0);
-    this.keyLight.position.set(3.2, 4.2, 3.6);
+    // 2. Key Light: 45-degree angled warm key spotlight
+    this.keyLight = new THREE.SpotLight(0xfff0e4, 4.5, 40, 0.82, 0.5, 1.0);
+    this.keyLight.position.set(3.4, 4.5, 3.8);
     this.keyLight.target.position.set(this.heroBaseX, 0, 0);
     this.keyLight.castShadow = true;
     this.keyLight.shadow.mapSize.width = 2048;
     this.keyLight.shadow.mapSize.height = 2048;
     this.keyLight.shadow.camera.near = 0.5;
-    this.keyLight.shadow.camera.far = 15;
-    this.keyLight.shadow.bias = -0.00015;
+    this.keyLight.shadow.camera.far = 20;
+    this.keyLight.shadow.bias = -0.0001;
     this.lights.add(this.keyLight);
     this.lights.add(this.keyLight.target);
 
-    // 3. Top-Back Rim/Kicker
-    this.rimLight = new THREE.SpotLight(0xfff2e2, 5.0, 25, 0.60, 0.5, 1.0);
-    this.rimLight.position.set(0.5, 4.8, -3.2);
+    // 3. Top-Back Rim/Kicker (sculpts basketball leather contour)
+    this.rimLight = new THREE.SpotLight(0xfff4e6, 5.2, 30, 0.65, 0.5, 1.0);
+    this.rimLight.position.set(0.6, 5.0, -3.4);
     this.rimLight.target.position.set(this.heroBaseX, 0, 0);
     this.lights.add(this.rimLight);
     this.lights.add(this.rimLight.target);
 
-    // 4. Cool Kicker
-    this.coolFill = new THREE.DirectionalLight(0xd8e4f2, 0.80);
-    this.coolFill.position.set(-3.5, 1.8, 3.0);
+    // 4. Cool Arena Kicker
+    this.coolFill = new THREE.DirectionalLight(0xb8cce4, 0.95);
+    this.coolFill.position.set(-3.8, 2.5, 3.0);
     this.lights.add(this.coolFill);
 
-    // 5. Hardwood Floor Bounce Fill
-    this.groundBounceLight = new THREE.DirectionalLight(0xb85626, 1.2);
-    this.groundBounceLight.position.set(0.0, -2.4, 1.8);
+    // 5. Hardwood Floor Bounce Light (warm reflection from court to ball underside)
+    this.groundBounceLight = new THREE.DirectionalLight(0xd4682a, 1.6);
+    this.groundBounceLight.position.set(this.heroBaseX, -3.0, 1.2);
     this.lights.add(this.groundBounceLight);
 
-    // 6. Interactive Cursor Light
-    this.cursorLight = new THREE.PointLight(0xffeedd, 0, 7.0);
-    this.cursorLight.position.set(this.heroBaseX, 0, 3.2);
+    // 6. Arena Flood Spotlight (broad overhead court wash)
+    this.arenaFlood = new THREE.SpotLight(0xffeedd, 2.2, 45, 1.1, 0.8, 1.0);
+    this.arenaFlood.position.set(0, 9.0, 2.0);
+    this.arenaFlood.target.position.set(0, 0, -4);
+    this.lights.add(this.arenaFlood);
+    this.lights.add(this.arenaFlood.target);
+
+    // 7. Interactive Cursor Light
+    this.cursorLight = new THREE.PointLight(0xff7733, 1.2, 8.0, 2.0);
+    this.cursorLight.position.set(this.heroBaseX + 1.2, 1.5, 2.2);
     this.lights.add(this.cursorLight);
   }
 
@@ -195,9 +203,13 @@ export class StandaloneBasketballMotion {
     this.ballGroup.position.set(this.heroBaseX, 0.0, 0.0);
 
     // Load nba_basketball_final.glb
+    const rawBaseUrl = import.meta.env.BASE_URL || '/';
+    const baseUrl = rawBaseUrl.endsWith('/') ? rawBaseUrl : `${rawBaseUrl}/`;
+    const modelUrl = `${baseUrl}nba_basketball_final.glb`;
+
     const loader = new GLTFLoader();
     loader.load(
-      '/nba_basketball_final.glb',
+      modelUrl,
       (gltf) => {
         this.modelRoot = gltf.scene;
 
@@ -267,111 +279,336 @@ export class StandaloneBasketballMotion {
   }
 
   // ========================================================
+  // PROCEDURAL HARDWOOD COURT & ARENA TEXTURE GENERATORS
+  // Fully offline, deployment-safe with zero 404s
+  // ========================================================
+  createHardwoodCourtTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 2048;
+    const ctx = canvas.getContext('2d');
+
+    // Base warm maple foundation
+    ctx.fillStyle = '#965d2b';
+    ctx.fillRect(0, 0, 2048, 2048);
+
+    // 64 Maple floorboard planks running along Y (Z in 3D world)
+    const plankCount = 64;
+    const plankWidth = 2048 / plankCount; // 32px per plank
+
+    // Authentic NBA gym maple palette with natural deep amber board variations
+    const boardColors = [
+      '#9c5c2a', '#905222', '#a66632', '#864b1d',
+      '#9e5f2b', '#8b4f20', '#a46530', '#834819',
+      '#955a26', '#8e5122', '#aa6935', '#884d1f',
+      '#935524', '#9f612d', '#7e4418', '#a0632f'
+    ];
+
+    for (let i = 0; i < plankCount; i++) {
+      const x = i * plankWidth;
+      const baseColor = boardColors[(i * 11 + 5) % boardColors.length];
+      ctx.fillStyle = baseColor;
+      ctx.fillRect(x, 0, plankWidth, 2048);
+
+      // Staggered butt joints (horizontal seams between board ends)
+      const segmentLen = 320 + ((i * 179) % 240);
+      for (let y = (i * 113) % segmentLen; y < 2048; y += segmentLen) {
+        // Dark seam shadow
+        ctx.fillStyle = 'rgba(28, 14, 6, 0.50)';
+        ctx.fillRect(x, y, plankWidth, 1.8);
+        // Bevel catch light
+        ctx.fillStyle = 'rgba(255, 238, 215, 0.16)';
+        ctx.fillRect(x, y + 1.8, plankWidth, 1.0);
+      }
+
+      // Micro wood grain fiber striations
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.024)';
+      for (let g = 2; g < plankWidth - 2; g += 3 + (g % 3)) {
+        ctx.fillRect(x + g, 0, 1, 2048);
+      }
+      ctx.fillStyle = 'rgba(25, 12, 4, 0.032)';
+      for (let g = 4; g < plankWidth - 2; g += 5 + (g % 4)) {
+        ctx.fillRect(x + g, 0, 1, 2048);
+      }
+
+      // Plank boundary groove (vertical seam)
+      ctx.fillStyle = 'rgba(20, 10, 4, 0.55)';
+      ctx.fillRect(x + plankWidth - 1.5, 0, 1.5, 2048);
+      ctx.fillStyle = 'rgba(255, 240, 220, 0.14)';
+      ctx.fillRect(x, 0, 1.0, 2048);
+    }
+
+    // Authentic court lines (three-point arc / key lines)
+    ctx.save();
+    // Large painted perimeter curve
+    ctx.strokeStyle = 'rgba(244, 240, 230, 0.82)';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(2048 * 0.38, 2048 * 0.72, 2048 * 0.50, -0.42 * Math.PI, 0.28 * Math.PI);
+    ctx.stroke();
+
+    // Straight key border
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(2048 * 0.16, 2048 * 0.15);
+    ctx.lineTo(2048 * 0.16, 2048 * 0.88);
+    ctx.stroke();
+
+    // Stenciled industrial technical insignia on court
+    ctx.fillStyle = 'rgba(32, 16, 8, 0.32)';
+    ctx.font = '600 24px "JetBrains Mono", monospace';
+    ctx.fillText('RE:FORM // SPECIMEN 001 — HARDWOOD CALIBRATION', 2048 * 0.22, 2048 * 0.52);
+    ctx.restore();
+
+    // Subtle global polyurethane gloss gradient
+    const glossGrad = ctx.createLinearGradient(0, 0, 0, 2048);
+    glossGrad.addColorStop(0, 'rgba(255, 245, 230, 0.06)');
+    glossGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.0)');
+    glossGrad.addColorStop(1, 'rgba(25, 12, 4, 0.12)');
+    ctx.fillStyle = glossGrad;
+    ctx.fillRect(0, 0, 2048, 2048);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(5.0, 5.0);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 16);
+    return texture;
+  }
+
+  createHardwoodRoughnessTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+
+    // Base semi-gloss polyurethane varnish roughness (darker = smoother/glossier)
+    ctx.fillStyle = 'rgb(68, 68, 68)'; // ~0.267 roughness
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    const plankCount = 32;
+    const plankWidth = 1024 / plankCount;
+
+    for (let i = 0; i < plankCount; i++) {
+      const x = i * plankWidth;
+      // Slight plank roughness variation (0.22 to 0.30)
+      const r = 58 + ((i * 17) % 22);
+      ctx.fillStyle = `rgb(${r}, ${r}, ${r})`;
+      ctx.fillRect(x, 0, plankWidth, 1024);
+
+      // Rougher joints and seams (less specular reflection in grooves)
+      ctx.fillStyle = 'rgb(160, 160, 160)';
+      ctx.fillRect(x + plankWidth - 1.5, 0, 1.5, 1024);
+
+      const segmentLen = 160 + ((i * 97) % 120);
+      for (let y = (i * 61) % segmentLen; y < 1024; y += segmentLen) {
+        ctx.fillRect(x, y, plankWidth, 2);
+      }
+    }
+
+    // Court paint lines have slightly more matte finish
+    ctx.save();
+    ctx.strokeStyle = 'rgb(110, 110, 110)';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(1024 * 0.38, 1024 * 0.72, 1024 * 0.50, -0.42 * Math.PI, 0.28 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(5.0, 5.0);
+    return texture;
+  }
+
+  createHardwoodBumpTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = 'rgb(128, 128, 128)'; // Neutral bump mid-gray
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    const plankCount = 32;
+    const plankWidth = 1024 / plankCount;
+
+    for (let i = 0; i < plankCount; i++) {
+      const x = i * plankWidth;
+      // Seam depressions (dark) and bevel highlights (bright)
+      ctx.fillStyle = 'rgb(80, 80, 80)';
+      ctx.fillRect(x + plankWidth - 1.5, 0, 1.5, 1024);
+      ctx.fillStyle = 'rgb(160, 160, 160)';
+      ctx.fillRect(x, 0, 1.0, 1024);
+
+      const segmentLen = 160 + ((i * 97) % 120);
+      for (let y = (i * 61) % segmentLen; y < 1024; y += segmentLen) {
+        ctx.fillStyle = 'rgb(85, 85, 85)';
+        ctx.fillRect(x, y, plankWidth, 1.5);
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(5.0, 5.0);
+    return texture;
+  }
+
+  createArenaBackgroundTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+
+    // Deep dark arena vertical atmosphere gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, 1024);
+    grad.addColorStop(0.0, '#050609');   // Top arena rafters
+    grad.addColorStop(0.30, '#0a0d15');  // Upper stadium atmosphere
+    grad.addColorStop(0.55, '#10141f');  // Floodlight ambient haze
+    grad.addColorStop(0.72, '#1c1511');  // Warm glow rising from court
+    grad.addColorStop(0.80, '#2d1b12');  // Horizon floodlight radiance line
+    grad.addColorStop(0.86, '#20120a');  // Court reflection interface
+    grad.addColorStop(1.0, '#120905');   // Sub-horizon ambient bounce
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 2048, 1024);
+
+    // Warm arena spotlight bloom behind the hero basketball position
+    const spotX = 2048 * 0.68;
+    const spotY = 1024 * 0.58;
+    const spotGrad = ctx.createRadialGradient(spotX, spotY, 20, spotX, spotY, 2048 * 0.44);
+    spotGrad.addColorStop(0.0, 'rgba(230, 96, 32, 0.20)');
+    spotGrad.addColorStop(0.30, 'rgba(170, 70, 24, 0.10)');
+    spotGrad.addColorStop(0.65, 'rgba(40, 24, 18, 0.03)');
+    spotGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = spotGrad;
+    ctx.fillRect(0, 0, 2048, 1024);
+
+    // Subtle distant arena light banks (overhead stadium fixture bars)
+    ctx.fillStyle = 'rgba(255, 235, 215, 0.04)';
+    const barY = 1024 * 0.48;
+    for (let b = 0; b < 14; b++) {
+      const bx = 2048 * 0.08 + b * (2048 * 0.062);
+      ctx.fillRect(bx, barY, 32, 4);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  // ========================================================
   // CONTACT SHADOW & HARDWOOD COURT ENVIRONMENT
   // ========================================================
   initGroundAndContactShadow() {
-    this.groundGroup = new THREE.Group();
-    // Position floor surface exactly at bottom contact point: -targetRadius (-0.702m)
-    this.groundGroup.position.y = -this.targetRadius - 0.002;
-    this.scene.add(this.groundGroup);
+    // 1. Full-Screen Hardwood Floor Plane (Stationary World Environment)
+    const floorTexture = this.createHardwoodCourtTexture();
+    const roughnessTexture = this.createHardwoodRoughnessTexture();
+    const bumpTexture = this.createHardwoodBumpTexture();
 
-    // 1. Physically Readable Hardwood Court Floor
-    const floorAlphaCanvas = document.createElement('canvas');
-    floorAlphaCanvas.width = 512;
-    floorAlphaCanvas.height = 512;
-    const fCtx = floorAlphaCanvas.getContext('2d');
-    const fGrad = fCtx.createRadialGradient(256, 300, 30, 256, 256, 290);
-    fGrad.addColorStop(0, 'rgba(255, 255, 255, 0.98)');
-    fGrad.addColorStop(0.40, 'rgba(255, 255, 255, 0.92)');
-    fGrad.addColorStop(0.70, 'rgba(255, 255, 255, 0.48)');
-    fGrad.addColorStop(0.92, 'rgba(255, 255, 255, 0.10)');
-    fGrad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
-    fCtx.fillStyle = fGrad;
-    fCtx.fillRect(0, 0, 512, 512);
-
-    const floorAlphaTexture = new THREE.CanvasTexture(floorAlphaCanvas);
-    const courtTexture = new THREE.TextureLoader().load(
-      '/reference/eeb6652dcb6a6cb366688275d6db738d.jpg',
-      (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.ClampToEdgeWrapping;
-        texture.repeat.set(0.65, 0.42);
-        texture.offset.set(0.18, 0.0);
-        this.floorMat.map = texture;
-        this.floorMat.needsUpdate = true;
-      }
-    );
-    const floorGeo = new THREE.PlaneGeometry(24, 24, 1, 1);
+    const floorGeo = new THREE.PlaneGeometry(100, 100, 1, 1);
     this.floorMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      map: courtTexture,
-      roughness: 0.60,
-      metalness: 0.04,
-      alphaMap: floorAlphaTexture,
-      transparent: true,
-      opacity: 0.0,
-      depthWrite: false
+      map: floorTexture,
+      roughnessMap: roughnessTexture,
+      bumpMap: bumpTexture,
+      bumpScale: 0.002,
+      roughness: 0.26,
+      metalness: 0.05
     });
+
     this.floorMesh = new THREE.Mesh(floorGeo, this.floorMat);
     this.floorMesh.rotation.x = -Math.PI / 2;
+    // Ground level: exactly at -targetRadius (-0.70m)
+    this.floorMesh.position.set(0, -this.targetRadius, -10);
     this.floorMesh.receiveShadow = true;
-    this.groundGroup.add(this.floorMesh);
+    this.scene.add(this.floorMesh);
 
-    // 2. Warm Ground Spotlight Pool
-    const poolCanvas = document.createElement('canvas');
-    poolCanvas.width = 512;
-    poolCanvas.height = 512;
-    const pCtx = poolCanvas.getContext('2d');
-    const pGrad = pCtx.createRadialGradient(256, 256, 15, 256, 256, 240);
-    pGrad.addColorStop(0, 'rgba(224, 84, 30, 0.36)');
-    pGrad.addColorStop(0.30, 'rgba(160, 60, 20, 0.18)');
-    pGrad.addColorStop(0.65, 'rgba(60, 24, 10, 0.06)');
-    pGrad.addColorStop(1, 'rgba(5, 5, 6, 0.0)');
+    // 2. Contact Shadow & Reflection Group (follows ball horizontally)
+    this.shadowGroup = new THREE.Group();
+    this.shadowGroup.position.set(this.heroBaseX, -this.targetRadius, 0);
+    this.scene.add(this.shadowGroup);
+
+    // Layer 1: Ambient Occlusion Contact Core (Umbra)
+    const umbraCanvas = document.createElement('canvas');
+    umbraCanvas.width = 512;
+    umbraCanvas.height = 512;
+    const uCtx = umbraCanvas.getContext('2d');
+    const uGrad = uCtx.createRadialGradient(256, 256, 8, 256, 256, 240);
+    uGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0.99)');
+    uGrad.addColorStop(0.24, 'rgba(0, 0, 0, 0.92)');
+    uGrad.addColorStop(0.48, 'rgba(0, 0, 0, 0.65)');
+    uGrad.addColorStop(0.75, 'rgba(0, 0, 0, 0.20)');
+    uGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    uCtx.fillStyle = uGrad;
+    uCtx.fillRect(0, 0, 512, 512);
+
+    const umbraTexture = new THREE.CanvasTexture(umbraCanvas);
+    const umbraGeo = new THREE.PlaneGeometry(1.6, 1.4);
+    this.contactShadowMat = new THREE.MeshBasicMaterial({
+      map: umbraTexture,
+      transparent: true,
+      opacity: 0.96,
+      depthWrite: false
+    });
+    this.contactShadow = new THREE.Mesh(umbraGeo, this.contactShadowMat);
+    this.contactShadow.rotation.x = -Math.PI / 2;
+    this.contactShadow.position.y = 0.001; // Sits 1mm above floorboards
+    this.shadowGroup.add(this.contactShadow);
+
+    // Layer 2: Directional Key-Light Penumbra (Soft cast shadow)
+    const penumbraCanvas = document.createElement('canvas');
+    penumbraCanvas.width = 512;
+    penumbraCanvas.height = 512;
+    const pCtx = penumbraCanvas.getContext('2d');
+    const pGrad = pCtx.createRadialGradient(230, 230, 16, 256, 256, 250);
+    pGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0.70)');
+    pGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.45)');
+    pGrad.addColorStop(0.70, 'rgba(0, 0, 0, 0.15)');
+    pGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
     pCtx.fillStyle = pGrad;
     pCtx.fillRect(0, 0, 512, 512);
 
+    const penumbraTexture = new THREE.CanvasTexture(penumbraCanvas);
+    const penumbraGeo = new THREE.PlaneGeometry(3.0, 2.5);
+    this.penumbraMat = new THREE.MeshBasicMaterial({
+      map: penumbraTexture,
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false
+    });
+    this.penumbraMesh = new THREE.Mesh(penumbraGeo, this.penumbraMat);
+    this.penumbraMesh.rotation.x = -Math.PI / 2;
+    this.penumbraMesh.position.set(-0.20, 0.002, -0.15); // Offset away from key light
+    this.shadowGroup.add(this.penumbraMesh);
+
+    // Layer 3: Warm Horween Leather Bounce Pool (Floor Reflection)
+    const poolCanvas = document.createElement('canvas');
+    poolCanvas.width = 512;
+    poolCanvas.height = 512;
+    const plCtx = poolCanvas.getContext('2d');
+    const plGrad = plCtx.createRadialGradient(256, 256, 12, 256, 256, 245);
+    plGrad.addColorStop(0.0, 'rgba(224, 84, 30, 0.42)');
+    plGrad.addColorStop(0.28, 'rgba(170, 58, 18, 0.22)');
+    plGrad.addColorStop(0.62, 'rgba(65, 24, 8, 0.06)');
+    plGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    plCtx.fillStyle = plGrad;
+    plCtx.fillRect(0, 0, 512, 512);
+
     const poolTexture = new THREE.CanvasTexture(poolCanvas);
-    const poolGeo = new THREE.PlaneGeometry(5.5, 5.5);
+    const poolGeo = new THREE.PlaneGeometry(3.4, 3.0);
     this.poolMat = new THREE.MeshBasicMaterial({
       map: poolTexture,
       transparent: true,
-      opacity: 0.0,
+      opacity: 0.85,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     });
     this.poolMesh = new THREE.Mesh(poolGeo, this.poolMat);
     this.poolMesh.rotation.x = -Math.PI / 2;
-    this.poolMesh.position.y = 0.001;
-    this.groundGroup.add(this.poolMesh);
-
-    // 3. Dynamic Precision Contact Shadow Plane
-    const shadowCanvas = document.createElement('canvas');
-    shadowCanvas.width = 512;
-    shadowCanvas.height = 512;
-    const sCtx = shadowCanvas.getContext('2d');
-    const sGrad = sCtx.createRadialGradient(256, 256, 8, 256, 256, 250);
-    sGrad.addColorStop(0, 'rgba(0, 0, 0, 0.99)');
-    sGrad.addColorStop(0.18, 'rgba(0, 0, 0, 0.92)');
-    sGrad.addColorStop(0.42, 'rgba(0, 0, 0, 0.60)');
-    sGrad.addColorStop(0.70, 'rgba(0, 0, 0, 0.22)');
-    sGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
-    sCtx.fillStyle = sGrad;
-    sCtx.fillRect(0, 0, 512, 512);
-
-    const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
-    const shadowGeo = new THREE.PlaneGeometry(3.2, 3.2);
-    this.contactShadowMat = new THREE.MeshBasicMaterial({
-      map: shadowTexture,
-      transparent: true,
-      opacity: 0.0,
-      depthWrite: false
-    });
-
-    this.contactShadow = new THREE.Mesh(shadowGeo, this.contactShadowMat);
-    this.contactShadow.rotation.x = -Math.PI / 2;
-    this.contactShadow.position.y = 0.003;
-    this.groundGroup.add(this.contactShadow);
+    this.poolMesh.position.y = 0.003;
+    this.shadowGroup.add(this.poolMesh);
   }
 
   setupListeners() {
@@ -479,9 +716,23 @@ export class StandaloneBasketballMotion {
 
   replayReveal() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(() => {
-      this.startMotionSequence();
-    }, 350);
+    // Smooth cinematic camera focus and gentle axial spin (no blackouts, no dropping, no floating)
+    gsap.to(this.camTarget, {
+      z: this.heroCamZ + 0.5,
+      duration: 0.6,
+      ease: 'power2.out',
+      onComplete: () => {
+        gsap.to(this.camTarget, {
+          z: this.heroCamZ,
+          duration: 1.0,
+          ease: 'power2.inOut'
+        });
+      }
+    });
+    gsap.fromTo(this.physics,
+      { scrollRotY: this.physics.scrollRotY + 0.8 },
+      { scrollRotY: 0, duration: 1.4, ease: 'power2.out' }
+    );
   }
 
   replayDrop() {
@@ -499,18 +750,18 @@ export class StandaloneBasketballMotion {
       this.revealTimeline = null;
     }
 
-    // STATE 01: PRODUCT ALONE IN DARK VOID
-    this.state = 'revealing';
+    // Immediately active & interactive
+    this.state = 'interactive';
 
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
       loadingOverlay.style.display = 'none';
     }
 
-    // Reset coordinates strictly grounded on floor
-    this.physics.baseX = 0.0;
+    // Grounded hero coordinates
+    this.physics.baseX = this.heroBaseX;
     this.physics.baseY = 0.0;
-    this.physics.baseZ = -0.50;
+    this.physics.baseZ = 0.0;
     this.physics.scrollRotX = 0;
     this.physics.scrollRotY = 0;
     this.mouse.spinX = 0;
@@ -521,183 +772,55 @@ export class StandaloneBasketballMotion {
     this.physics.pushY = 0;
     this.physics.tiltX = 0;
     this.physics.tiltY = 0;
+    this.physics.panelDisplacement = 0;
 
-    this.ballGroup.scale.set(0.85, 0.85, 0.85);
-    this.ballGroup.position.set(0.0, 0.0, -0.50);
+    this.ballGroup.scale.set(1.0, 1.0, 1.0);
+    this.ballGroup.position.set(this.heroBaseX, 0.0, 0.0);
     this.ballGroup.rotation.set(
       this.physics.rotationX + 0.38,
       this.physics.rotationY + 1.2,
       this.physics.rotationZ
     );
     this.settledRotY = this.ballGroup.rotation.y;
-    this.revealRotY = -0.65;
+    this.revealRotY = 0;
 
-    // Camera initial framing in void
-    this.camera.position.set(0, 0.45, 6.5);
-    this.camera.lookAt(0, -0.05, 0);
+    // Camera framed immediately on the hero composition
+    this.camera.position.set(0, this.heroCamY, this.heroCamZ);
+    this.camera.lookAt(this.heroLookX, this.heroLookY, 0);
     this.camTarget.x = 0;
-    this.camTarget.y = 0.45;
-    this.camTarget.z = 6.5;
-    this.camTarget.lookX = 0;
-    this.camTarget.lookY = -0.05;
+    this.camTarget.y = this.heroCamY;
+    this.camTarget.z = this.heroCamZ;
+    this.camTarget.lookX = this.heroLookX;
+    this.camTarget.lookY = this.heroLookY;
     this.camTarget.lookZ = 0;
     this.camJolt = 0;
 
-    // Atmospheric lighting in dark studio opening
-    this.keyLight.intensity = 0.6;
-    this.ambientLight.intensity = 0.20;
-    this.rimLight.intensity = 3.8;
+    // Full studio lighting
+    this.keyLight.intensity = 4.5;
+    this.ambientLight.intensity = 0.65;
+    this.rimLight.intensity = 5.2;
+    this.coolFill.intensity = 0.95;
+    this.groundBounceLight.intensity = 1.6;
+    if (this.arenaFlood) this.arenaFlood.intensity = 2.4;
 
-    // Floor and shadow initial state
-    if (this.floorMat) this.floorMat.opacity = 0.0;
-    if (this.poolMat) this.poolMat.opacity = 0.0;
-    this.targetShadowOpacity = 0.25;
-    if (this.contactShadowMat) this.contactShadowMat.opacity = 0.25;
+    // Floor and shadow full visibility
+    if (this.floorMat) this.floorMat.opacity = 1.0;
+    if (this.poolMat) this.poolMat.opacity = 0.85;
+    this.targetShadowOpacity = 0.96;
+    if (this.contactShadowMat) this.contactShadowMat.opacity = 0.96;
+    if (this.penumbraMat) this.penumbraMat.opacity = 0.65;
 
-    // Interface elements initial hidden state
-    gsap.set('#site-nav', { opacity: 0, y: -16 });
-    gsap.set('#nav-rail', { opacity: 0, x: -20 });
-    gsap.set('#story-progress', { opacity: 0, x: 20 });
-    gsap.set('.hero-top-meta', { opacity: 0, y: 16 });
-    gsap.set('.hero-headline', { opacity: 0, y: 24 });
-    gsap.set('.hero-subtext', { opacity: 0, y: 20 });
-    gsap.set('.hero-actions', { opacity: 0, y: 20 });
-    gsap.set('.hero-scroll-indicator', { opacity: 0, y: 16 });
-
-    // GSAP PRODUCT FILM REVEAL TIMELINE
-    this.revealTimeline = gsap.timeline({
-      defaults: { ease: 'power3.out' },
-      onComplete: () => {
-        this.state = 'interactive';
-        this.revealRotY = 0;
-        this.settledRotY = this.ballGroup.rotation.y;
-        this.updateActiveSection(0);
-        this.initScrollTriggers();
-        this.onSequenceComplete();
-      }
+    // Ensure all UI elements are visible
+    gsap.set(['#site-nav', '#nav-rail', '#story-progress', '.hero-top-meta', '.hero-headline', '.hero-subtext', '.hero-actions', '.hero-scroll-indicator'], {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      clearProps: 'transform'
     });
 
-    // Phase 1: Product emerges into focus (0.0s - 1.2s)
-    this.revealTimeline.to(this.ballGroup.scale, {
-      x: 1.0,
-      y: 1.0,
-      z: 1.0,
-      duration: 1.2,
-      ease: 'power2.out'
-    }, 0);
-
-    this.revealTimeline.to(this.physics, {
-      baseZ: 0.0,
-      duration: 1.2,
-      ease: 'power2.out'
-    }, 0);
-
-    this.revealTimeline.to(this.keyLight, {
-      intensity: 4.2,
-      duration: 1.3,
-      ease: 'power2.inOut'
-    }, 0.1);
-
-    this.revealTimeline.to(this.ambientLight, {
-      intensity: 0.40,
-      duration: 1.3,
-      ease: 'power2.inOut'
-    }, 0.1);
-
-    // Phase 2: Controlled glide to Hero flank & camera reframing (0.35s - 1.75s)
-    this.revealTimeline.to(this.physics, {
-      baseX: this.heroBaseX,
-      duration: 1.4,
-      ease: 'power3.inOut'
-    }, 0.35);
-
-    this.revealTimeline.to(this.camTarget, {
-      x: 0,
-      y: this.heroCamY,
-      z: this.heroCamZ,
-      lookX: this.heroLookX,
-      lookY: this.heroLookY,
-      duration: 1.4,
-      ease: 'power3.inOut'
-    }, 0.35);
-
-    this.revealTimeline.to(this, {
-      revealRotY: 0,
-      duration: 1.5,
-      ease: 'power2.out'
-    }, 0.25);
-
-    this.revealTimeline.to(this, {
-      targetShadowOpacity: 0.96,
-      duration: 1.2,
-      ease: 'power2.out'
-    }, 0.4);
-
-    if (this.poolMat) {
-      this.revealTimeline.to(this.poolMat, {
-        opacity: 0.85,
-        duration: 1.2,
-        ease: 'power2.out'
-      }, 0.4);
-    }
-
-    // Phase 3: Interface Reveal (1.0s - 2.0s)
-    this.revealTimeline.to('#site-nav', {
-      opacity: 1,
-      y: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, 1.0);
-
-    this.revealTimeline.to('#nav-rail', {
-      opacity: 1,
-      x: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, 1.05);
-
-    this.revealTimeline.to('#story-progress', {
-      opacity: 1,
-      x: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, 1.10);
-
-    // Phase 4: Staggered Editorial Typography Entrance (1.15s - 1.8s)
-    this.revealTimeline.to('.hero-top-meta', {
-      opacity: 1,
-      y: 0,
-      duration: 0.7,
-      ease: 'power2.out'
-    }, 1.15);
-
-    this.revealTimeline.to('.hero-headline', {
-      opacity: 1,
-      y: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, 1.25);
-
-    this.revealTimeline.to('.hero-subtext', {
-      opacity: 1,
-      y: 0,
-      duration: 0.7,
-      ease: 'power2.out'
-    }, 1.35);
-
-    this.revealTimeline.to('.hero-actions', {
-      opacity: 1,
-      y: 0,
-      duration: 0.7,
-      ease: 'power2.out'
-    }, 1.45);
-
-    this.revealTimeline.to('.hero-scroll-indicator', {
-      opacity: 1,
-      y: 0,
-      duration: 0.6,
-      ease: 'power2.out'
-    }, 1.55);
+    this.updateActiveSection(0);
+    this.initScrollTriggers();
+    this.onSequenceComplete();
   }
 
   revealHeroEditorial() {
@@ -820,7 +943,6 @@ export class StandaloneBasketballMotion {
         this.camTarget.z = heroCamZ;
         this.camTarget.lookX = heroLookX;
         this.camTarget.lookY = heroLookY;
-        if (this.floorMat) this.floorMat.opacity = 0.0;
       },
       onUpdate: (self) => {
         const p = self.progress;
@@ -828,11 +950,6 @@ export class StandaloneBasketballMotion {
         this.physics.baseY = 0.0; // Floor constraint: strictly grounded
         this.physics.scrollRotY = p * Math.PI * 1.6;
         this.physics.scrollRotX = Math.sin(p * Math.PI) * 0.25;
-
-        // Hardwood court emerges contextually for performance section
-        if (this.floorMat) {
-          this.floorMat.opacity = Math.sin(p * Math.PI) * 0.92;
-        }
 
         this.camTarget.x = Math.sin(p * Math.PI * 0.7) * 1.10;
         this.camTarget.y = heroCamY + Math.sin(p * Math.PI) * 0.18;
@@ -879,9 +996,6 @@ export class StandaloneBasketballMotion {
 
         // Panel explosion disabled: all 8 panels assembled
         this.physics.panelDisplacement = 0;
-
-        // Subtle ambient court floor
-        if (this.floorMat) this.floorMat.opacity = 0.20;
 
         // Smooth axial product rotation
         this.modularGroup.rotation.y = p * Math.PI * 2.2;
@@ -933,9 +1047,6 @@ export class StandaloneBasketballMotion {
         // Dramatic rim lighting grazing the leather grain
         this.rimLight.intensity = 5.0 + Math.sin(p * Math.PI) * 2.2;
         this.keyLight.intensity = 4.2 - Math.sin(p * Math.PI) * 1.0;
-
-        // Dark minimal studio background isolates texture
-        if (this.floorMat) this.floorMat.opacity = 0.0;
       }
     });
 
@@ -955,7 +1066,6 @@ export class StandaloneBasketballMotion {
         this.camTarget.lookX = 0;
         this.camTarget.lookY = heroLookY;
         this.keyLight.intensity = 3.8 + p * 1.4;
-        if (this.floorMat) this.floorMat.opacity = 0.15;
       }
     });
 
@@ -1009,22 +1119,20 @@ export class StandaloneBasketballMotion {
     // Since groundGroup is positioned at -targetRadius, ball center must be >= 0.0.
     const constrainedY = Math.max(0.0, this.physics.baseY + this.physics.pushY);
 
-    // Contact shadow & floor coupling
-    if (this.contactShadow && this.contactShadowMat) {
+    // Contact shadow & floor reflection tracking
+    if (this.shadowGroup) {
       const ballElevation = constrainedY; // Distance above floor surface
       const baseShadowOpacity = this.targetShadowOpacity !== undefined ? this.targetShadowOpacity : 0.96;
       const targetOpacity = Math.max(0.04, baseShadowOpacity / (1.0 + ballElevation * 2.2));
       const targetScale = 1.0 + ballElevation * 0.42;
-      this.contactShadowMat.opacity = targetOpacity;
-      this.contactShadow.scale.set(targetScale, targetScale, 1.0);
-      this.contactShadow.position.x = this.ballGroup.position.x;
-      this.contactShadow.position.z = this.ballGroup.position.z;
-      this.poolMesh.position.x = this.ballGroup.position.x;
-      this.poolMesh.position.z = this.ballGroup.position.z;
-      if (this.floorMesh) {
-        this.floorMesh.position.x = this.ballGroup.position.x;
-        this.floorMesh.position.z = this.ballGroup.position.z;
-      }
+
+      if (this.contactShadowMat) this.contactShadowMat.opacity = targetOpacity;
+      if (this.penumbraMat) this.penumbraMat.opacity = targetOpacity * 0.68;
+      if (this.poolMat) this.poolMat.opacity = targetOpacity * 0.85;
+      if (this.contactShadow) this.contactShadow.scale.set(targetScale, targetScale, 1.0);
+
+      this.shadowGroup.position.x = this.ballGroup.position.x;
+      this.shadowGroup.position.z = this.ballGroup.position.z;
     }
 
     // MOUSE PROXIMITY & PHYSICAL ROTATION

@@ -68,7 +68,7 @@ header#site-nav.pill-nav-container {
   position: fixed;
   top: 24px;
   left: 50%;
-  transform: translateX(-50%) translateY(-12px);
+  transform: translateX(-50%);
   width: min(1320px, calc(100% - 64px));
   height: 62px;
   display: flex;
@@ -76,7 +76,7 @@ header#site-nav.pill-nav-container {
   justify-content: space-between;
   padding: 0 28px;
   z-index: 50;
-  opacity: 0;
+  opacity: 1;
   pointer-events: auto;
   background: rgba(13, 14, 18, 0.76);
   backdrop-filter: blur(20px);
@@ -198,7 +198,7 @@ aside#nav-rail.vertical-rail {
   border-radius: 14px;
   z-index: 45;
   pointer-events: auto;
-  opacity: 0;
+  opacity: 1;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: border-color 0.3s ease;
 }
@@ -324,7 +324,7 @@ aside#story-progress.vertical-progress {
   gap: 16px;
   z-index: 45;
   pointer-events: auto;
-  opacity: 0;
+  opacity: 1;
 }
 
 .progress-step-btn {
@@ -451,8 +451,8 @@ a, button {
 }
 
 .hero-reveal {
-  opacity: 0;
-  transform: translateY(16px);
+  opacity: 1;
+  transform: none;
   pointer-events: auto;
 }
 
@@ -503,18 +503,20 @@ a, button {
   letter-spacing: -0.035em;
   color: var(--text);
   margin-bottom: 20px;
-  opacity: 0;
-  transform: translateY(24px);
+  opacity: 1;
+  transform: none;
+  text-shadow: 0 3px 20px rgba(0, 0, 0, 0.75);
 }
 
 .hero-subtext {
   font-size: 15px;
   line-height: 1.7;
-  color: var(--text-muted);
+  color: rgba(242, 241, 245, 0.88);
   max-width: 460px;
   font-weight: 400;
-  opacity: 0;
-  transform: translateY(20px);
+  opacity: 1;
+  transform: none;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
 }
 
 .hero-actions {
@@ -523,8 +525,8 @@ a, button {
   gap: 14px;
   margin-top: 28px;
   flex-wrap: wrap;
-  opacity: 0;
-  transform: translateY(20px);
+  opacity: 1;
+  transform: none;
 }
 
 .cta-primary {
